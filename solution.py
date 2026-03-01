@@ -1,6 +1,9 @@
 ## Student Name:
 ## Student ID:
 
+import datetime
+from typing import List, Dict
+
 """
 Stub file for the meeting slot suggestion exercise.
 
@@ -8,7 +11,6 @@ Implement the function `suggest_slots` to return a list of valid meeting start t
 on a given day, taking into account working hours, and possible specific constraints. See the lab handout
 for full requirements.
 """
-from typing import List, Dict
 
 
 def suggest_slots(
@@ -25,53 +27,56 @@ def suggest_slots(
     Returns:
         List of valid start times as "HH:MM" sorted ascending
     """
-    # CONSTRAINT FROM TEST CASE: No meeting may start during the lunch break (12:00–13:00).
-    # Idea:
-    # Since the day of the week has no impact on the events (because events are day agnostic)
-    # we only need to represent a single day
-    # We will represent a single day as a string of bits where each position is a single minute
-    # Then we can easily mask and check if periods of time are free
-    # There are 1440 minutes in 24 hours
-    # Gemini suggested that perhaps it is 15 minute increments
-    # Gemini suggested start and end hours
-    # Gemini suggested to not modify input values
-    # Gemini suggested that there is a transition time buffer (before or after a meeting)
-    # We will add a post meeting buffer time
     dailySchedule = 0
     timeIncrement = 15
     postBufferTime = 15
     output = []
     bookedTimes = events[::]
-    # add restricted time zones
-    # add lunch hour
+
+    # Add lunch hour (12:00 to 12:45 so buffer lands it exactly at 13:00)
     bookedTimes.append({"start": "12:00", "end": "12:45"})
-    # restrict time outside of work
+    # Restrict time outside of work
     bookedTimes.append({"start": "00:00", "end": "08:45"})
     bookedTimes.append({"start": "17:00", "end": "23:59"})
 
     for booked in bookedTimes:
         dailySchedule = dailySchedule | _convertEventToBinary(booked, postBufferTime)
 
-    # this starts from the end of the day
+    # Robustly determine if 'day' is a Friday
+    is_friday = False
+    try:
+        # Try to parse as YYYY-MM-DD
+        dt = datetime.datetime.strptime(day, "%Y-%m-%d")
+        if dt.weekday() == 4:  # Monday is 0, Friday is 4
+            is_friday = True
+    except ValueError:
+        # Fallback to string prefix checking
+        if day.lower().startswith("fri"):
+            is_friday = True
+
+    # This starts from the end of the day
     for i in range(0, 1440 - meeting_duration, timeIncrement):
         if not (
             dailySchedule & (_convertMeetingDurationToBinary(meeting_duration) << i)
         ):
-            if (
-                day.lower() != "fri"
-                or int(_convertNumberToTime(meeting_duration, i)[:2]) < 15
-            ):
-                output.append(_convertNumberToTime(meeting_duration, i))
+
+            start_time_str = _convertNumberToTime(meeting_duration, i)
+            start_h, start_m = map(int, start_time_str.split(":"))
+
+            # Friday Business Rule: Must not start AFTER 15:00
+            if is_friday:
+                if start_h > 15 or (start_h == 15 and start_m > 0):
+                    continue  # Skip this slot
+
+            output.append(start_time_str)
 
     return output[::-1]  # reverse because it is decrementing
 
-    # raise NotImplementedError("suggest_slots function has not been implemented yet")
 
-
+# Helper functions remain exactly as you wrote them
 def _convertEventToBinary(event: Dict[str, str], postBuffer: int) -> int:
     start = int(event["start"][:2]) * 60 + int(event["start"][3:])
     end = int(event["end"][:2]) * 60 + int(event["end"][3:]) + postBuffer
-    # cap at midnight before the next day
     if end > 1440:
         end = 1440
     duration = end - start
@@ -87,20 +92,3 @@ def _convertMeetingDurationToBinary(duration: int) -> int:
 def _convertNumberToTime(duration: int, number: int) -> str:
     minutes = 1440 - duration - number
     return f"{(minutes//60):02d}:{(minutes%60):02d}"
-
-
-# events = [
-#     {"start": "13:00", "end": "14:00"},
-#     {"start": "09:30", "end": "10:00"},
-#     {"start": "11:00", "end": "12:00"},
-# ]
-# slots = suggest_slots(events, meeting_duration=30, day="2026-02-01")
-
-# events = [{"start": "07:00", "end": "08:00"}]
-# slots = suggest_slots(events, meeting_duration=60, day="2026-02-01")
-# print(slots)
-# def _convertBinToTime(binaryNumber: int) -> str:
-
-#     return ""
-
-# print(bin(_convertEventToBinary({"start": "01:00", "end": "02:00"})))
