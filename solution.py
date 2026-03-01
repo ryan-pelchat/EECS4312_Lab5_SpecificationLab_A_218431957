@@ -37,7 +37,7 @@ def suggest_slots(
     # Gemini suggested to not modify input values
     # Gemini suggested that there is a transition time buffer (before or after a meeting)
     # We will add a post meeting buffer time
-    day = 0
+    dailySchedule = 0
     timeIncrement = 15
     postBufferTime = 15
     output = []
@@ -50,12 +50,18 @@ def suggest_slots(
     bookedTimes.append({"start": "17:00", "end": "23:59"})
 
     for booked in bookedTimes:
-        day = day | _convertEventToBinary(booked, postBufferTime)
+        dailySchedule = dailySchedule | _convertEventToBinary(booked, postBufferTime)
 
     # this starts from the end of the day
     for i in range(0, 1440 - meeting_duration, timeIncrement):
-        if not (day & (_convertMeetingDurationToBinary(meeting_duration) << i)):
-            output.append(_convertNumberToTime(meeting_duration, i))
+        if not (
+            dailySchedule & (_convertMeetingDurationToBinary(meeting_duration) << i)
+        ):
+            if (
+                day.lower() != "fri"
+                or int(_convertNumberToTime(meeting_duration, i)[:2]) < 15
+            ):
+                output.append(_convertNumberToTime(meeting_duration, i))
 
     return output[::-1]  # reverse because it is decrementing
 
