@@ -1,3 +1,5 @@
 TaskA_sol/
 EECS4312_Lab5_SpecificationLab_A.code-workspace
 TaskA_sol/hidden_tests_v2.py
+*.pyc
+launch.json
